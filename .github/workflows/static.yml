@@ -2,19 +2,15 @@
 name: Deploy Squoosh to Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["dev"]
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -32,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.16.0'  # Using the version from your .nvmrc file
+          node-version: '20.16.0'
           
       - name: Install dependencies
         run: npm ci
@@ -40,14 +36,29 @@ jobs:
       - name: Build project
         run: npm run build
         
+      - name: Debug - List directories
+        run: |
+          echo "Build output structure:"
+          find .tmp -type f -name "index.html"
+          ls -la .tmp/build
+          
+      - name: Create index.html in root if missing
+        run: |
+          if [ -f ".tmp/build/static/index.html" ]; then
+            cp .tmp/build/static/index.html ./index.html
+            echo "Copied index.html to root"
+          else
+            echo "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='0;url=.tmp/build/static/index.html'></head></html>" > index.html
+            echo "Created redirect index.html"
+          fi
+          
       - name: Setup Pages
         uses: actions/configure-pages@v5
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload only the built files
-          path: '.tmp/build/static'
+          path: '.'
           
       - name: Deploy to GitHub Pages
         id: deployment
