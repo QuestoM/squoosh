@@ -1,4 +1,3 @@
-# Workflow for deploying Squoosh to GitHub Pages
 name: Deploy Squoosh to Pages
 
 on:
@@ -36,29 +35,31 @@ jobs:
       - name: Build project
         run: npm run build
         
-      - name: Debug - List directories
+      - name: Debug - List build output
         run: |
-          echo "Build output structure:"
-          find .tmp -type f -name "index.html"
-          ls -la .tmp/build
-          
-      - name: Create index.html in root if missing
+          echo "Checking if build files exist:"
+          find . -type d -name "static"
+          find . -name "index.html"
+
+      - name: Create public directory with build output
         run: |
-          if [ -f ".tmp/build/static/index.html" ]; then
-            cp .tmp/build/static/index.html ./index.html
-            echo "Copied index.html to root"
+          mkdir -p public
+          if [ -d ".tmp/build/static" ]; then
+            cp -r .tmp/build/static/* public/
+            echo "Copied build files to public directory"
           else
-            echo "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='0;url=.tmp/build/static/index.html'></head></html>" > index.html
-            echo "Created redirect index.html"
+            echo "Build directory not found! Creating error page."
+            echo "<html><body><h1>Build Error</h1><p>Could not find build output.</p></body></html>" > public/index.html
           fi
-          
+          ls -la public
+      
       - name: Setup Pages
         uses: actions/configure-pages@v5
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: 'public'
           
       - name: Deploy to GitHub Pages
         id: deployment
