@@ -1,4 +1,4 @@
-name: Deploy Squoosh to Pages
+name: Debug and Deploy Squoosh
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  debug-and-deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,29 +29,69 @@ jobs:
         with:
           node-version: '20.16.0'
           
+      - name: List repository contents
+        run: ls -la
+          
       - name: Install dependencies
         run: npm ci
         
-      - name: Build project
-        run: npm run build
+      - name: Check build script
+        run: |
+          echo "Build script from package.json:"
+          grep -A 5 "scripts" package.json
         
-      - name: Debug - List build output
+      - name: Build project (verbose)
+        run: npm run build --verbose
+        
+      - name: Extensive debugging
         run: |
-          echo "Checking if build files exist:"
-          find . -type d -name "static"
-          find . -name "index.html"
-
-      - name: Create public directory with build output
+          echo "Repository structure after build:"
+          find . -maxdepth 3 -type d | sort
+          
+          echo "\nSearching for any .tmp directory:"
+          find . -name ".tmp" -type d
+          
+          echo "\nSearching for any build directory:"
+          find . -name "build" -type d
+          
+          echo "\nSearching for HTML files:"
+          find . -name "*.html"
+          
+          echo "\nChecking if .tmp exists:"
+          ls -la .tmp || echo ".tmp directory does not exist"
+          
+          echo "\nChecking move-output.js:"
+          cat lib/move-output.js || echo "move-output.js not found"
+          
+      - name: Create deployment directory
         run: |
-          mkdir -p public
-          if [ -d ".tmp/build/static" ]; then
-            cp -r .tmp/build/static/* public/
-            echo "Copied build files to public directory"
+          mkdir -p deploy
+          
+          # Try potential build output locations
+          if [ -d "build" ]; then
+            cp -r build/* deploy/
+            echo "Copied from build/ directory"
+          elif [ -d ".tmp/build/static" ]; then
+            cp -r .tmp/build/static/* deploy/
+            echo "Copied from .tmp/build/static/ directory"
+          elif [ -d "dist" ]; then
+            cp -r dist/* deploy/
+            echo "Copied from dist/ directory"
+          elif [ -d "out" ]; then
+            cp -r out/* deploy/
+            echo "Copied from out/ directory"
           else
-            echo "Build directory not found! Creating error page."
-            echo "<html><body><h1>Build Error</h1><p>Could not find build output.</p></body></html>" > public/index.html
+            echo "Could not find build output. Creating error page with project structure."
+            echo "<html><head><title>Build Error</title></head><body>" > deploy/index.html
+            echo "<h1>Build Error</h1>" >> deploy/index.html
+            echo "<p>Could not find build output.</p>" >> deploy/index.html
+            echo "<h2>Project Structure:</h2><pre>" >> deploy/index.html
+            find . -type d -not -path "*/node_modules/*" -not -path "*/.git/*" | sort >> deploy/index.html
+            echo "</pre></body></html>" >> deploy/index.html
           fi
-          ls -la public
+          
+          echo "\nDeployment directory contents:"
+          ls -la deploy
       
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -59,7 +99,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'public'
+          path: 'deploy'
           
       - name: Deploy to GitHub Pages
         id: deployment
