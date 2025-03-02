@@ -1,4 +1,4 @@
-name: Deploy Squoosh with Path Fixes
+name: Deploy Squoosh with Post-Build Fixes
 
 on:
   push:
@@ -28,36 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.16.0'
-      
-      - name: Patch files for GitHub Pages
-        run: |
-          # 1. Update the base path in serve.json for redirects
-          echo "Updating serve.json with base path"
-          if [ -f "serve.json" ]; then
-            sed -i 's|"source": "/editor"|"source": "/squoosh/editor"|g' serve.json
-            sed -i 's|"destination": "/"|"destination": "/squoosh/"|g' serve.json
-            cat serve.json
-          fi
-          
-          # 2. Add base path to the router configuration
-          echo "Patching client files for base path"
-          # Update route in App/index.tsx to include /squoosh base path
-          if [ -f "src/client/lazy-app/Compress/index.tsx" ]; then
-            sed -i 's|ROUTE_EDITOR = \'/editor\'|ROUTE_EDITOR = \'/squoosh/editor\'|g' src/client/initial-app/App/index.tsx
-            sed -i 's|history.pushState(null, \'\', editorURL.href)|history.pushState(null, \'\', editorURL.href.replace(\'/editor\', \'/squoosh/editor\'))|g' src/client/initial-app/App/index.tsx
-          fi
-          
-          # 3. Add a fix for static assets to make sure icons and other resources load correctly
-          # Create a patch file for rollup.config.js to update asset paths
-          cat > rollup.patch.js << 'EOF'
-          // Patch for rollup.config.js to fix asset paths for GitHub Pages
-          function resolveFileUrlForGithubPages({ fileName }) {
-            return JSON.stringify('/squoosh' + fileNameToURL(fileName));
-          }
-          EOF
-          
-          # 4. Create a .nojekyll file to ensure GitHub Pages doesn't process the files with Jekyll
-          touch .nojekyll
           
       - name: Install dependencies
         run: npm ci
@@ -65,7 +35,7 @@ jobs:
       - name: Build project
         run: npm run build
         
-      - name: Create custom deploy files
+      - name: Create deployment with redirects
         run: |
           mkdir -p deploy
           
@@ -73,34 +43,94 @@ jobs:
           if [ -d ".tmp/build/static" ]; then
             echo "Found build output - copying files"
             cp -r .tmp/build/static/* deploy/
-            cp .nojekyll deploy/
             
-            # Fix routing: Create a redirect at /editor to /squoosh/editor
+            # Create a main HTML page at root with client-side redirect script
+            cat > deploy/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Squoosh - Image Compression App</title>
+  <script>
+    // Intercept all navigation requests and handle GitHub Pages paths
+    window.addEventListener('DOMContentLoaded', () => {
+      // Patch the history API to prepend /squoosh to paths
+      const originalPushState = history.pushState;
+      history.pushState = function(state, title, url) {
+        if (url && url.startsWith('/editor')) {
+          console.log('Intercepted navigation to', url);
+          url = '/squoosh' + url;
+        }
+        return originalPushState.call(this, state, title, url);
+      };
+      
+      // Load the actual app
+      const script = document.createElement('script');
+      script.src = 'client-main.js';  // Replace with actual main JS file
+      document.body.appendChild(script);
+    });
+  </script>
+  <style>
+    #app {
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- The app will render here -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+      <p>Loading Squoosh...</p>
+    </div>
+  </div>
+  
+  <!-- Find main JS file and include it -->
+  <script>
+    // Find the main JS file by pattern
+    fetch('/squoosh/')
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const scripts = Array.from(doc.querySelectorAll('script[src]'));
+        scripts.forEach(script => {
+          const newScript = document.createElement('script');
+          newScript.src = script.getAttribute('src');
+          document.body.appendChild(newScript);
+        });
+      });
+  </script>
+</body>
+</html>
+EOF
+
+            # Copy original HTML and JS to maintain the original app code
+            if [ -f ".tmp/build/static/index.html" ]; then
+              cp .tmp/build/static/index.html deploy/original-index.html
+            fi
+            
+            # Create editor redirect
             mkdir -p deploy/editor
             cat > deploy/editor/index.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="refresh" content="0;url=/squoosh/editor">
-  <title>Redirecting...</title>
+  <meta http-equiv="refresh" content="0;url=/squoosh/">
+  <script>
+    // Redirect with path preserved
+    window.location.href = '/squoosh/';
+  </script>
 </head>
 <body>
-  Redirecting to <a href="/squoosh/editor">/squoosh/editor</a>...
+  <p>Redirecting to <a href="/squoosh/">Squoosh</a>...</p>
 </body>
 </html>
 EOF
-            
-            # Fix any internal links in the index.html
-            if [ -f "deploy/index.html" ]; then
-              echo "Fixing internal links in index.html"
-              sed -i 's|href="/|href="/squoosh/|g' deploy/index.html
-              sed -i 's|src="/|src="/squoosh/|g' deploy/index.html
-              
-              # Add a base tag to ensure all relative URLs resolve correctly
-              sed -i 's|<head>|<head>\n  <base href="/squoosh/">|' deploy/index.html
-            fi
-            
-            # Create a 404.html that redirects back to the main app for client-side routing
+
+            # Create a custom 404 page that redirects back to the app
             cat > deploy/404.html << 'EOF'
 <!DOCTYPE html>
 <html>
@@ -108,15 +138,12 @@ EOF
   <meta charset="utf-8">
   <title>Squoosh</title>
   <script>
-    // Redirect all 404s back to the main app with the path preserved
-    // This handles client-side routing when users refresh on a route
-    const path = window.location.pathname.replace(/^\/squoosh/, '');
-    window.location.href = '/squoosh/#' + path;
+    // Send all navigation to the main app
+    window.location.href = '/squoosh/';
   </script>
-  <meta http-equiv="refresh" content="0;url=/squoosh/">
 </head>
 <body>
-  Redirecting to <a href="/squoosh/">Squoosh app</a>...
+  <p>Redirecting to <a href="/squoosh/">Squoosh app</a>...</p>
 </body>
 </html>
 EOF
