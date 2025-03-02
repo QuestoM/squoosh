@@ -1,4 +1,4 @@
-name: Debug and Deploy Squoosh
+name: Deploy Squoosh with Path Fixes
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  debug-and-deploy:
+  build-and-deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -28,70 +28,114 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.16.0'
+      
+      - name: Patch files for GitHub Pages
+        run: |
+          # 1. Update the base path in serve.json for redirects
+          echo "Updating serve.json with base path"
+          if [ -f "serve.json" ]; then
+            sed -i 's|"source": "/editor"|"source": "/squoosh/editor"|g' serve.json
+            sed -i 's|"destination": "/"|"destination": "/squoosh/"|g' serve.json
+            cat serve.json
+          fi
           
-      - name: List repository contents
-        run: ls -la
+          # 2. Add base path to the router configuration
+          echo "Patching client files for base path"
+          # Update route in App/index.tsx to include /squoosh base path
+          if [ -f "src/client/lazy-app/Compress/index.tsx" ]; then
+            sed -i 's|ROUTE_EDITOR = \'/editor\'|ROUTE_EDITOR = \'/squoosh/editor\'|g' src/client/initial-app/App/index.tsx
+            sed -i 's|history.pushState(null, \'\', editorURL.href)|history.pushState(null, \'\', editorURL.href.replace(\'/editor\', \'/squoosh/editor\'))|g' src/client/initial-app/App/index.tsx
+          fi
+          
+          # 3. Add a fix for static assets to make sure icons and other resources load correctly
+          # Create a patch file for rollup.config.js to update asset paths
+          cat > rollup.patch.js << 'EOF'
+          // Patch for rollup.config.js to fix asset paths for GitHub Pages
+          function resolveFileUrlForGithubPages({ fileName }) {
+            return JSON.stringify('/squoosh' + fileNameToURL(fileName));
+          }
+          EOF
+          
+          # 4. Create a .nojekyll file to ensure GitHub Pages doesn't process the files with Jekyll
+          touch .nojekyll
           
       - name: Install dependencies
         run: npm ci
         
-      - name: Check build script
-        run: |
-          echo "Build script from package.json:"
-          grep -A 5 "scripts" package.json
+      - name: Build project
+        run: npm run build
         
-      - name: Build project (verbose)
-        run: npm run build --verbose
-        
-      - name: Extensive debugging
-        run: |
-          echo "Repository structure after build:"
-          find . -maxdepth 3 -type d | sort
-          
-          echo "\nSearching for any .tmp directory:"
-          find . -name ".tmp" -type d
-          
-          echo "\nSearching for any build directory:"
-          find . -name "build" -type d
-          
-          echo "\nSearching for HTML files:"
-          find . -name "*.html"
-          
-          echo "\nChecking if .tmp exists:"
-          ls -la .tmp || echo ".tmp directory does not exist"
-          
-          echo "\nChecking move-output.js:"
-          cat lib/move-output.js || echo "move-output.js not found"
-          
-      - name: Create deployment directory
+      - name: Create custom deploy files
         run: |
           mkdir -p deploy
           
-          # Try potential build output locations
-          if [ -d "build" ]; then
-            cp -r build/* deploy/
-            echo "Copied from build/ directory"
-          elif [ -d ".tmp/build/static" ]; then
+          # Copy build files
+          if [ -d ".tmp/build/static" ]; then
+            echo "Found build output - copying files"
             cp -r .tmp/build/static/* deploy/
-            echo "Copied from .tmp/build/static/ directory"
-          elif [ -d "dist" ]; then
-            cp -r dist/* deploy/
-            echo "Copied from dist/ directory"
-          elif [ -d "out" ]; then
-            cp -r out/* deploy/
-            echo "Copied from out/ directory"
+            cp .nojekyll deploy/
+            
+            # Fix routing: Create a redirect at /editor to /squoosh/editor
+            mkdir -p deploy/editor
+            cat > deploy/editor/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0;url=/squoosh/editor">
+  <title>Redirecting...</title>
+</head>
+<body>
+  Redirecting to <a href="/squoosh/editor">/squoosh/editor</a>...
+</body>
+</html>
+EOF
+            
+            # Fix any internal links in the index.html
+            if [ -f "deploy/index.html" ]; then
+              echo "Fixing internal links in index.html"
+              sed -i 's|href="/|href="/squoosh/|g' deploy/index.html
+              sed -i 's|src="/|src="/squoosh/|g' deploy/index.html
+              
+              # Add a base tag to ensure all relative URLs resolve correctly
+              sed -i 's|<head>|<head>\n  <base href="/squoosh/">|' deploy/index.html
+            fi
+            
+            # Create a 404.html that redirects back to the main app for client-side routing
+            cat > deploy/404.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Squoosh</title>
+  <script>
+    // Redirect all 404s back to the main app with the path preserved
+    // This handles client-side routing when users refresh on a route
+    const path = window.location.pathname.replace(/^\/squoosh/, '');
+    window.location.href = '/squoosh/#' + path;
+  </script>
+  <meta http-equiv="refresh" content="0;url=/squoosh/">
+</head>
+<body>
+  Redirecting to <a href="/squoosh/">Squoosh app</a>...
+</body>
+</html>
+EOF
           else
-            echo "Could not find build output. Creating error page with project structure."
-            echo "<html><head><title>Build Error</title></head><body>" > deploy/index.html
-            echo "<h1>Build Error</h1>" >> deploy/index.html
-            echo "<p>Could not find build output.</p>" >> deploy/index.html
-            echo "<h2>Project Structure:</h2><pre>" >> deploy/index.html
-            find . -type d -not -path "*/node_modules/*" -not -path "*/.git/*" | sort >> deploy/index.html
-            echo "</pre></body></html>" >> deploy/index.html
+            echo "Build files not found. Creating error page."
+            mkdir -p deploy
+            cat > deploy/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Build Error</title>
+</head>
+<body>
+  <h1>Build Error</h1>
+  <p>Could not find build output.</p>
+</body>
+</html>
+EOF
           fi
-          
-          echo "\nDeployment directory contents:"
-          ls -la deploy
       
       - name: Setup Pages
         uses: actions/configure-pages@v5
