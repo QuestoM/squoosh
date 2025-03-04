@@ -183,11 +183,13 @@ export default class BulkCompress extends Component<Props, State> {
     if (!this.state.processingActive) return;
 
     // Process up to concurrency limit
+    while (this.activeWorkers < this.state.concurrency && this.state.imageQueue.length > 0) {
       const imageIndex = this.state.imageQueue.shift()!;
       this.processImage(imageIndex);
     }
 
     // Check if we're all done
+    if (this.activeWorkers === 0 && this.state.imageQueue.length === 0) {
       this.setState({ processingActive: false, overallProgress: 100 });
       this.props.showSnack('All images processed successfully!', { timeout: 3000 });
     }
@@ -200,22 +202,46 @@ export default class BulkCompress extends Component<Props, State> {
     const bridge = this.workerBridges[workerIndex];
 
     // Update status to processing
-    this.updateImageState(index, { status: 'processing' });
+    this.updateImageState(index, { status: 'processing', progress: 0 });
 
     try {
-      // Create abort controller
+      // Create abort controller for cancellation support
       const controller = new AbortController();
 
-      // This is where the actual processing would happen, similar to the Compress component
-      // For simplicity, we'll just simulate processing with progress updates
-        await new Promise(resolve =, 100));
-        this.updateProgress(index, progress);
-      }
+      // Decode image
+      const decoded = await bridge.decode(image.file, controller.signal);
+      this.updateProgress(index, 25);
 
-      // Create a dummy result file
+      // Preprocess image
+      const preprocessed = await bridge.preprocess(
+        decoded,
+        this.state.preprocessorState,
+        controller.signal
+      );
+      this.updateProgress(index, 50);
+
+      // Process image
+      const processed = await bridge.process(
+        preprocessed,
+        this.state.processorState,
+        controller.signal
+      );
+      this.updateProgress(index, 75);
+
+      // Encode image
+      const encodedBlob = await bridge.encode(
+        processed,
+        this.state.encoderState!,
+        controller.signal
+      );
+
+      // Create result file with proper extension
+      const extension = this.getFileExtension(this.state.encoderState!.type);
+      const newFileName = image.file.name.replace(/\.[^.]+$/, `.${extension}`);
       const result = {
-        file: new File([image.file], image.file.name.replace(/\.[.]+$/, '.jpg')),
-        downloadUrl: URL.createObjectURL(image.file)
+        file: new File([encodedBlob], newFileName, { type: encodedBlob.type }),
+        downloadUrl: URL.createObjectURL(encodedBlob),
+        data: processed
       };
 
       // Update with final result
@@ -287,10 +313,27 @@ export default class BulkCompress extends Component<Props, State> {
     this.updateImageState(index, { progress });
 
     // Calculate overall progress
-    this.setState(state =
-      const overallProgress = state.images.reduce((sum, img) = + img.progress, 0) / state.images.length;
+    this.setState(state => {
+      const overallProgress = state.images.reduce((sum, img) => sum + img.progress, 0) / state.images.length;
       return { overallProgress };
     });
+  }
+
+  private getFileExtension(encoderType: EncoderState['type']): string {
+    switch (encoderType) {
+      case 'mozJPEG':
+        return 'jpg';
+      case 'webP':
+        return 'webp';
+      case 'avif':
+        return 'avif';
+      case 'oxiPNG':
+        return 'png';
+      case 'jxl':
+        return 'jxl';
+      default:
+        return 'jpg';
+    }
   }
 
   private removeImage = (index: number) =
