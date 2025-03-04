@@ -32,45 +32,71 @@ const Index: FunctionalComponent<Props> = () => (
         name="description"
         content="Squoosh - Free online image optimizer and compressor with superior compression algorithms. Reduce image file sizes while maintaining quality. Supports JPG, PNG, WebP, AVIF and more."
       />
-      <meta name="keywords" content="image compression, image optimizer, image compressor, photo compression, webp converter, avif converter, image optimization tool, reduce image size, compress images online, free image compressor" />
+      <meta
+        name="keywords"
+        content="image compression, image optimizer, image compressor, photo compression, webp converter, avif converter, image optimization tool, reduce image size, compress images online, free image compressor"
+      />
       <meta name="author" content="Google Chrome Labs" />
       <meta name="robots" content="index, follow" />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:site" content="@SquooshApp" />
       <meta name="twitter:creator" content="@ChromiumDev" />
-      <meta name="twitter:title" content="Squoosh - Free Online Image Optimizer" />
-      <meta name="twitter:description" content="Compress and optimize your images with Squoosh. Free, fast, and works entirely in your browser. Reduce file size while maintaining quality." />
+      <meta
+        name="twitter:title"
+        content="Squoosh - Free Online Image Optimizer"
+      />
+      <meta
+        name="twitter:description"
+        content="Compress and optimize your images with Squoosh. Free, fast, and works entirely in your browser. Reduce file size while maintaining quality."
+      />
       <meta name="twitter:image" content={`${siteOrigin}${ogImage}`} />
-      <meta property="og:title" content="Squoosh - Free Online Image Optimizer" />
+      <meta
+        property="og:title"
+        content="Squoosh - Free Online Image Optimizer"
+      />
       <meta property="og:type" content="website" />
       <meta property="og:url" content={siteOrigin} />
       <meta property="og:image" content={`${siteOrigin}${ogImage}`} />
-      <meta property="og:image:secure_url" content={`${siteOrigin}${ogImage}`} />
+      <meta
+        property="og:image:secure_url"
+        content={`${siteOrigin}${ogImage}`}
+      />
       <meta property="og:image:type" content="image/png" />
       <meta property="og:image:width" content="500" />
       <meta property="og:image:height" content="500" />
-      <meta property="og:image:alt" content="A cartoon of a hand squeezing an image file on a dark background." />
-      <meta property="og:description" content="Compress and optimize your images with Squoosh. Free, fast, and works entirely in your browser. Reduce file size while maintaining quality." />
+      <meta
+        property="og:image:alt"
+        content="A cartoon of a hand squeezing an image file on a dark background."
+      />
+      <meta
+        property="og:description"
+        content="Compress and optimize your images with Squoosh. Free, fast, and works entirely in your browser. Reduce file size while maintaining quality."
+      />
       <meta property="og:site_name" content="Squoosh" />
       <script type="application/ld+json">
-        {
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          "name": "Squoosh",
-          "url": "${siteOrigin}",
-          "description": "Free online image optimizer and compressor with superior compression algorithms. Reduce image file sizes while maintaining quality.",
-          "applicationCategory": "Image Processing",
-          "operatingSystem": "Any",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
+        {JSON.stringify(
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'Squoosh',
+            url: siteOrigin,
+            description:
+              'Free online image optimizer and compressor with superior compression algorithms. Reduce image file sizes while maintaining quality.',
+            applicationCategory: 'Image Processing',
+            operatingSystem: 'Any',
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'USD',
+            },
+            creator: {
+              '@type': 'Organization',
+              name: 'Google Chrome Labs',
+            },
           },
-          "creator": {
-            "@type": "Organization",
-            "name": "Google Chrome Labs"
-          }
-        }
+          null,
+          2,
+        )}
       </script>
       <meta
         name="viewport"

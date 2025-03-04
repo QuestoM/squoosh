@@ -102,19 +102,89 @@
 }
 
 .backButton:hover {
-  text-decoration: underline;
+  color: #1976d2;
+}
+
+.controls {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.progressSection {
+  margin-bottom: 16px;
+}
+
+.progressBar {
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: #2196f3;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 16px;
+}
+
+.processButton {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.processButton:hover {
+  background-color: #1976d2;
+}
+
+.processButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.downloadButton {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.downloadButton:hover {
+  background-color: #388e3c;
 }
 
 @media (max-width: 768px) {
   .mainContent {
     grid-template-columns: 1fr;
   }
-  
+
   .settingsSection {
     grid-column: 1;
     grid-row: 1;
   }
-  
+
   .imageSection {
     grid-column: 1;
     grid-row: 2;

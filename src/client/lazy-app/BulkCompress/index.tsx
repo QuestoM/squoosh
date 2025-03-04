@@ -5,7 +5,13 @@ import ImageList from './ImageList';
 import BatchSettings from './BatchSettings';
 import BatchResults from './BatchResults';
 import { linkRef } from 'shared/prerendered-app/util';
-import { defaultProcessorState, ProcessorState, EncoderState, encoderMap, defaultPreprocessorState } from '../feature-meta';
+import {
+  defaultProcessorState,
+  ProcessorState,
+  EncoderState,
+  encoderMap,
+  defaultPreprocessorState,
+} from '../feature-meta';
 import WorkerBridge from '../worker-bridge';
 import { blobToImg } from '../util';
 import JSZip from 'jszip';
@@ -45,6 +51,7 @@ interface State {
   overallProgress: number;
   processingActive: boolean;
   concurrency: number;
+  imageQueue: number[];
 }
 
 export default class BulkCompress extends Component<Props, State> {
@@ -64,7 +71,7 @@ export default class BulkCompress extends Component<Props, State> {
     images: [],
     overallProgress: 0,
     processingActive: false,
-    concurrency: this.determineOptimalConcurrency()
+    concurrency: this.determineOptimalConcurrency(),
   };
 
   constructor(props: Props) {
@@ -86,12 +93,12 @@ export default class BulkCompress extends Component<Props, State> {
   componentDidMount() {
     // Initialize images from props.files
     this.setState({
-      images: this.props.files.map(file => ({
+      images: this.props.files.map((file) => ({
         file,
         status: 'queued',
-        progress: 0
+        progress: 0,
       })),
-      imageQueue: this.props.files.map((_, i) => i)
+      imageQueue: this.props.files.map((_, i) => i),
     });
 
     // Generate thumbnails asynchronously
@@ -102,7 +109,8 @@ export default class BulkCompress extends Component<Props, State> {
     // Clean up any resources
     for (const image of this.state.images) {
       if (image.thumbnail) URL.revokeObjectURL(image.thumbnail);
-      if (image.result?.downloadUrl) URL.revokeObjectURL(image.result.downloadUrl);
+      if (image.result?.downloadUrl)
+        URL.revokeObjectURL(image.result.downloadUrl);
     }
   }
 
@@ -123,7 +131,7 @@ export default class BulkCompress extends Component<Props, State> {
           } catch (err) {
             console.error('Error creating thumbnail:', err);
           }
-        })
+        }),
       );
 
       // Update state after each batch
@@ -139,7 +147,10 @@ export default class BulkCompress extends Component<Props, State> {
     const img = await blobToImg(file);
 
     // Calculate dimensions
-    const ratio = Math.min(MAX_DIMENSION / img.width, MAX_DIMENSION / img.height);
+    const ratio = Math.min(
+      MAX_DIMENSION / img.width,
+      MAX_DIMENSION / img.height,
+    );
     const width = Math.round(img.width * ratio);
     const height = Math.round(img.height * ratio);
 
@@ -153,41 +164,50 @@ export default class BulkCompress extends Component<Props, State> {
 
     // Get as blob
     return new Promise((resolve, reject) => {
-      canvas.toBlob(blob => {
-        if (blob) resolve(blob);
-        else reject(new Error('Could not create thumbnail'));
-      }, 'image/jpeg', 0.7);
-    });
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Could not create thumbnail'));
+        },
+        'image/jpeg',
+        0.7,
+      );
     });
   }
 
   private onSettingsChange = (updates: {
-    processorState?: ProcessorState,
-    encoderState?: EncoderState,
-    preprocessorState?: typeof defaultPreprocessorState
+    processorState?: ProcessorState;
+    encoderState?: EncoderState;
+    preprocessorState?: typeof defaultPreprocessorState;
   }) => {
     this.setState(updates);
-  }
-  }
+  };
 
   private startProcessing = () => {
     if (this.state.processingActive) return;
 
-    this.setState({
-      processingActive: true,
-      imageQueue: this.state.images.map((_, i) => i).filter(i => this.state.images[i].status !== 'complete')
-    }, () => {
-      // Start processing
-      this.processNext();
-    });
-  }
-  }
+    this.setState(
+      {
+        processingActive: true,
+        imageQueue: this.state.images
+          .map((_, i) => i)
+          .filter((i) => this.state.images[i].status !== 'complete'),
+      },
+      () => {
+        // Start processing
+        this.processNext();
+      },
+    );
+  };
 
   private processNext() {
     if (!this.state.processingActive) return;
 
     // Process up to concurrency limit
-    while (this.activeWorkers < this.state.concurrency && this.state.imageQueue.length > 0) {
+    while (
+      this.activeWorkers < this.state.concurrency &&
+      this.state.imageQueue.length > 0
+    ) {
       const imageIndex = this.state.imageQueue.shift()!;
       this.processImage(imageIndex);
     }
@@ -195,7 +215,9 @@ export default class BulkCompress extends Component<Props, State> {
     // Check if we're all done
     if (this.activeWorkers === 0 && this.state.imageQueue.length === 0) {
       this.setState({ processingActive: false, overallProgress: 100 });
-      this.props.showSnack('All images processed successfully!', { timeout: 3000 });
+      this.props.showSnack('All images processed successfully!', {
+        timeout: 3000,
+      });
     }
   }
 
@@ -213,30 +235,30 @@ export default class BulkCompress extends Component<Props, State> {
       const controller = new AbortController();
 
       // Decode image
-      const decoded = await bridge.decode(image.file, controller.signal);
+      const decoded = await bridge.decodeImage(image.file, controller.signal);
       this.updateProgress(index, 25);
 
       // Preprocess image
-      const preprocessed = await bridge.preprocess(
+      const preprocessed = await bridge.preprocessImage(
         decoded,
         this.state.preprocessorState,
-        controller.signal
+        controller.signal,
       );
       this.updateProgress(index, 50);
 
       // Process image
-      const processed = await bridge.process(
+      const processed = await bridge.processImage(
         preprocessed,
         this.state.processorState,
-        controller.signal
+        controller.signal,
       );
       this.updateProgress(index, 75);
 
       // Encode image
-      const encodedBlob = await bridge.encode(
+      const encodedBlob = await bridge.encodeImage(
         processed,
         this.state.encoderState!,
-        controller.signal
+        controller.signal,
       );
 
       // Create result file with proper extension
@@ -245,14 +267,14 @@ export default class BulkCompress extends Component<Props, State> {
       const result = {
         file: new File([encodedBlob], newFileName, { type: encodedBlob.type }),
         downloadUrl: URL.createObjectURL(encodedBlob),
-        data: processed
+        data: processed,
       };
 
       // Update with final result
       this.updateImageState(index, {
         status: 'complete',
         progress: 100,
-        result
+        result,
       });
 
       /* Actual implementation would be similar to Compress component:
@@ -292,12 +314,11 @@ export default class BulkCompress extends Component<Props, State> {
         data: processed
       };
       */
-
     } catch (error) {
       console.error(`Error processing image ${index}:`, error);
       this.updateImageState(index, {
         status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
       this.activeWorkers--;
@@ -306,7 +327,7 @@ export default class BulkCompress extends Component<Props, State> {
   }
 
   private updateImageState(index: number, updates: Partial<BatchImageState>) {
-    this.setState(state => {
+    this.setState((state) => {
       const newImages = [...state.images];
       newImages[index] = { ...newImages[index], ...updates };
       return { images: newImages };
@@ -317,8 +338,10 @@ export default class BulkCompress extends Component<Props, State> {
     this.updateImageState(index, { progress });
 
     // Calculate overall progress
-    this.setState(state => {
-      const overallProgress = state.images.reduce((sum, img) => sum + img.progress, 0) / state.images.length;
+    this.setState((state) => {
+      const overallProgress =
+        state.images.reduce((sum, img) => sum + img.progress, 0) /
+        state.images.length;
       return { overallProgress };
     });
   }
@@ -341,12 +364,13 @@ export default class BulkCompress extends Component<Props, State> {
   }
 
   private removeImage = (index: number) => {
-    this.setState(state => {
+    this.setState((state) => {
       const image = state.images[index];
 
       // Clean up resources
       if (image.thumbnail) URL.revokeObjectURL(image.thumbnail);
-      if (image.result?.downloadUrl) URL.revokeObjectURL(image.result.downloadUrl);
+      if (image.result?.downloadUrl)
+        URL.revokeObjectURL(image.result.downloadUrl);
 
       // Remove from images array
       const newImages = [...state.images];
@@ -354,19 +378,19 @@ export default class BulkCompress extends Component<Props, State> {
 
       // Update queue if needed
       const newQueue = state.imageQueue
-        .map(i => i > index ? i - 1 : i)
-        .filter(i => i !== index);
+        .map((i) => (i > index ? i - 1 : i))
+        .filter((i) => i !== index);
 
       return {
         images: newImages,
         imageQueue: newQueue,
-        overallProgress: newImages.length 
-          ? newImages.reduce((sum, img) => sum + img.progress, 0) / newImages.length
-          : 0
+        overallProgress: newImages.length
+          ? newImages.reduce((sum, img) => sum + img.progress, 0) /
+            newImages.length
+          : 0,
       };
     });
-    });
-  }
+  };
 
   private downloadSingle = (index: number) => {
     const image = this.state.images[index];
@@ -377,12 +401,11 @@ export default class BulkCompress extends Component<Props, State> {
     a.href = image.result.downloadUrl;
     a.download = image.result.file.name;
     a.click();
-  }
-  }
+  };
 
   private downloadAll = async () => {
     const { images } = this.state;
-    const completedImages = images.filter(img => img.status === 'complete');
+    const completedImages = images.filter((img) => img.status === 'complete');
 
     if (completedImages.length === 0) {
       this.props.showSnack('No processed images to download');
@@ -397,7 +420,9 @@ export default class BulkCompress extends Component<Props, State> {
       // Add each file to the zip
       for (const image of completedImages) {
         if (!image.result) continue;
-        const blob = await fetch(image.result.downloadUrl).then(r => r.blob());
+        const blob = await fetch(image.result.downloadUrl).then((r) =>
+          r.blob(),
+        );
         zip.file(image.result.file.name, blob);
       }
 
@@ -418,17 +443,102 @@ export default class BulkCompress extends Component<Props, State> {
       console.error('Error creating zip:', err);
       this.props.showSnack('Failed to create ZIP file');
     }
-  }
+  };
 
   private showSnack = (message: string, options = {}) => {
     if (!this.snackbar) throw Error('Snackbar missing');
     return this.snackbar.showSnackbar(message, options);
-  }
   };
 
-  render({ onBack }: Props, { images, processorState, encoderState, overallProgress, processingActive }: State) {
-    const completedCount = images.filter(img => img.status === 'complete').length;
-    const errorCount = images.filter(img => img.status === 'error').length;
+  render(
+    { onBack }: Props,
+    {
+      images,
+      processorState,
+      encoderState,
+      overallProgress,
+      processingActive,
+    }: State,
+  ) {
+    const completedCount = images.filter(
+      (img) => img.status === 'complete',
+    ).length;
+    const errorCount = images.filter((img) => img.status === 'error').length;
     const isAllComplete = completedCount === images.length;
 
     return (
+      <div class={style.bulkCompress}>
+        <button class={style.backButton} onClick={onBack}>
+          <span>←</span> Back
+        </button>
+
+        <div class={style.header}>
+          <h1>Bulk Image Processing</h1>
+          <div class={style.stats}>
+            <span>
+              {images.length} image{images.length !== 1 ? 's' : ''}
+            </span>
+            {completedCount > 0 && (
+              <span class={style.completedCount}>
+                {completedCount} completed
+              </span>
+            )}
+            {errorCount > 0 && (
+              <span class={style.errorCount}>{errorCount} failed</span>
+            )}
+          </div>
+        </div>
+
+        <div class={style.mainContent}>
+          <div class={style.imageSection}>
+            <h2>Images</h2>
+            <ImageList
+              images={images}
+              onRemove={this.removeImage}
+              onDownload={this.downloadSingle}
+            />
+          </div>
+
+          <div class={style.settingsSection}>
+            <h2>Settings</h2>
+            <BatchSettings
+              processorState={processorState}
+              encoderState={encoderState}
+              preprocessorState={this.state.preprocessorState}
+              onChange={this.onSettingsChange}
+            />
+          </div>
+        </div>
+
+        <div class={style.controls}>
+          <div class={style.progressSection}>
+            <div class={style.progressBar}>
+              <div
+                class={style.progressFill}
+                style={{ width: `${overallProgress}%` }}
+              />
+            </div>
+            <div class={style.progressText}>
+              {Math.round(overallProgress)}% complete
+            </div>
+          </div>
+
+          <div class={style.buttonRow}>
+            <button
+              class={style.processButton}
+              onClick={this.startProcessing}
+              disabled={processingActive || images.length === 0}
+            >
+              {processingActive ? 'Processing...' : 'Start Processing'}
+            </button>
+            {isAllComplete && (
+              <button class={style.downloadButton} onClick={this.downloadAll}>
+                Download All
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
