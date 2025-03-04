@@ -53,24 +53,24 @@ const Index: FunctionalComponent<Props> = () => (
       <meta property="og:description" content="Compress and optimize your images with Squoosh. Free, fast, and works entirely in your browser. Reduce file size while maintaining quality." />
       <meta property="og:site_name" content="Squoosh" />
       <script type="application/ld+json">
-        {{
+        {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           "name": "Squoosh",
-          "url": "{siteOrigin}",
+          "url": "${siteOrigin}",
           "description": "Free online image optimizer and compressor with superior compression algorithms. Reduce image file sizes while maintaining quality.",
           "applicationCategory": "Image Processing",
           "operatingSystem": "Any",
-          "offers": {{
+          "offers": {
             "@type": "Offer",
             "price": "0",
             "priceCurrency": "USD"
-          }},
-          "creator": {{
+          },
+          "creator": {
             "@type": "Organization",
             "name": "Google Chrome Labs"
-          }}
-        }}
+          }
+        }
       </script>
       <meta
         name="viewport"

@@ -34,7 +34,7 @@ interface BatchImageState {
 interface Props {
   files: File[];
   showSnack: SnackBarElement['showSnackbar'];
-  onBack: () =
+  onBack: () => void;
 }
 
 interface State {
@@ -86,11 +86,12 @@ export default class BulkCompress extends Component<Props, State> {
   componentDidMount() {
     // Initialize images from props.files
     this.setState({
-      images: this.props.files.map(file =
+      images: this.props.files.map(file => ({
         file,
         status: 'queued',
+        progress: 0
       })),
-      imageQueue: this.props.files.map((_, i) =
+      imageQueue: this.props.files.map((_, i) => i)
     });
 
     // Generate thumbnails asynchronously
@@ -114,7 +115,7 @@ export default class BulkCompress extends Component<Props, State> {
     for (let i = 0; i < images.length; i += batchSize) {
       const batch = images.slice(i, i + batchSize);
       await Promise.all(
-        batch.map(async (image, index) =
+        batch.map(async (image, index) => {
           try {
             const thumbnailBlob = await this.createThumbnail(image.file);
             const thumbnailUrl = URL.createObjectURL(thumbnailBlob);
@@ -151,11 +152,12 @@ export default class BulkCompress extends Component<Props, State> {
     ctx.drawImage(img, 0, 0, width, height);
 
     // Get as blob
-    return new Promise((resolve, reject) =
-      canvas.toBlob(blob =
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(blob => {
         if (blob) resolve(blob);
         else reject(new Error('Could not create thumbnail'));
       }, 'image/jpeg', 0.7);
+    });
     });
   }
 
@@ -163,20 +165,22 @@ export default class BulkCompress extends Component<Props, State> {
     processorState?: ProcessorState,
     encoderState?: EncoderState,
     preprocessorState?: typeof defaultPreprocessorState
-  }) =
+  }) => {
     this.setState(updates);
   }
+  }
 
-  private startProcessing = () =
+  private startProcessing = () => {
     if (this.state.processingActive) return;
 
     this.setState({
       processingActive: true,
-      imageQueue: this.state.images.map((_, i) = !== 'complete')
-    }, () =
+      imageQueue: this.state.images.map((_, i) => i).filter(i => this.state.images[i].status !== 'complete')
+    }, () => {
       // Start processing
       this.processNext();
     });
+  }
   }
 
   private processNext() {
@@ -302,7 +306,7 @@ export default class BulkCompress extends Component<Props, State> {
   }
 
   private updateImageState(index: number, updates: Partial<BatchImageState>) {
-    this.setState(state =
+    this.setState(state => {
       const newImages = [...state.images];
       newImages[index] = { ...newImages[index], ...updates };
       return { images: newImages };
@@ -336,8 +340,8 @@ export default class BulkCompress extends Component<Props, State> {
     }
   }
 
-  private removeImage = (index: number) =
-    this.setState(state =
+  private removeImage = (index: number) => {
+    this.setState(state => {
       const image = state.images[index];
 
       // Clean up resources
@@ -349,18 +353,22 @@ export default class BulkCompress extends Component<Props, State> {
       newImages.splice(index, 1);
 
       // Update queue if needed
-      const newQueue = state.imageQueue.map(i = ? i - 1 : i).filter(i = !== index);
+      const newQueue = state.imageQueue
+        .map(i => i > index ? i - 1 : i)
+        .filter(i => i !== index);
 
       return {
         images: newImages,
         imageQueue: newQueue,
         overallProgress: newImages.length 
-          ? newImages.reduce((sum, img) = + img.progress, 0) / newImages.length
+          ? newImages.reduce((sum, img) => sum + img.progress, 0) / newImages.length
+          : 0
       };
+    });
     });
   }
 
-  private downloadSingle = (index: number) =
+  private downloadSingle = (index: number) => {
     const image = this.state.images[index];
     if (!image.result) return;
 
@@ -370,9 +378,11 @@ export default class BulkCompress extends Component<Props, State> {
     a.download = image.result.file.name;
     a.click();
   }
+  }
 
-  private downloadAll = async () =
+  private downloadAll = async () => {
     const { images } = this.state;
+    const completedImages = images.filter(img => img.status === 'complete');
 
     if (completedImages.length === 0) {
       this.props.showSnack('No processed images to download');
@@ -387,7 +397,7 @@ export default class BulkCompress extends Component<Props, State> {
       // Add each file to the zip
       for (const image of completedImages) {
         if (!image.result) continue;
-        const blob = await fetch(image.result.downloadUrl).then(r =
+        const blob = await fetch(image.result.downloadUrl).then(r => r.blob());
         zip.file(image.result.file.name, blob);
       }
 
@@ -410,14 +420,15 @@ export default class BulkCompress extends Component<Props, State> {
     }
   }
 
-  private showSnack = (message: string, options = {}) =
+  private showSnack = (message: string, options = {}) => {
     if (!this.snackbar) throw Error('Snackbar missing');
     return this.snackbar.showSnackbar(message, options);
+  }
   };
 
   render({ onBack }: Props, { images, processorState, encoderState, overallProgress, processingActive }: State) {
-    const completedCount = images.filter(img = === 'complete').length;
-    const errorCount = images.filter(img = === 'error').length;
+    const completedCount = images.filter(img => img.status === 'complete').length;
+    const errorCount = images.filter(img => img.status === 'error').length;
     const isAllComplete = completedCount === images.length;
 
     return (
