@@ -581,7 +581,10 @@ export default class Compress extends Component<Props, State> {
     if (immediate) {
       this.updateImage();
     } else {
-      this.updateImageTimeout = setTimeout(() => this.updateImage(), delay);
+      this.updateImageTimeout = setTimeout(
+        () => this.updateImage(),
+        delay,
+      ) as unknown as number;
     }
   }
 
