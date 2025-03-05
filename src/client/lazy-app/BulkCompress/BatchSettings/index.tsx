@@ -6,6 +6,7 @@ import {
   EncoderState,
   encoderMap,
   defaultPreprocessorState,
+  EncoderType,
 } from '../../feature-meta';
 
 interface Props {
@@ -25,7 +26,7 @@ interface Props {
 export default class BatchSettings extends Component<Props> {
   private onEncoderTypeChange = (event: Event) => {
     const select = event.target as HTMLSelectElement;
-    const newType = select.value as keyof typeof encoderMap;
+    const newType = select.value as EncoderType;
 
     // Get default options for the selected encoder
     const options = encoderMap[newType].meta.defaultOptions;
@@ -33,7 +34,7 @@ export default class BatchSettings extends Component<Props> {
     this.props.onChange({
       encoderState: {
         type: newType,
-        options: options as EncoderState['options'],
+        options,
       },
     });
   };
@@ -48,27 +49,7 @@ export default class BatchSettings extends Component<Props> {
     // Update quality based on encoder type
     switch (encoderState.type) {
       case 'mozJPEG':
-        this.props.onChange({
-          encoderState: {
-            ...encoderState,
-            options: {
-              ...encoderState.options,
-              quality,
-            },
-          },
-        });
-        break;
       case 'webP':
-        this.props.onChange({
-          encoderState: {
-            ...encoderState,
-            options: {
-              ...encoderState.options,
-              quality,
-            },
-          },
-        });
-        break;
       case 'avif':
         this.props.onChange({
           encoderState: {
@@ -80,7 +61,6 @@ export default class BatchSettings extends Component<Props> {
           },
         });
         break;
-      // Add cases for other encoder types as needed
     }
   };
 

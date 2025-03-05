@@ -1,19 +1,18 @@
+import { Options as RotateOptions } from '../../../features/preprocessors/rotate/shared/meta';
+import { Options as QuantizeOptions } from '../../../features/processors/quantize/shared/meta';
+import { Options as ResizeOptions } from '../../../features/processors/resize/shared/meta';
+
 export interface PreprocessorState {
-  rotate: {
-    rotate: number;
-  };
+  rotate: RotateOptions;
 }
 
 export interface ProcessorState {
   resize: {
     enabled: boolean;
-    width: number;
-    height: number;
-  };
+  } & ResizeOptions;
   quantize: {
     enabled: boolean;
-    numColors?: number;
-  };
+  } & QuantizeOptions;
 }
 
 export interface EncoderState {

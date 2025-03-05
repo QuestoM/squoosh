@@ -120,7 +120,7 @@ class WorkerBridge {
   /** Comlinked worker API. */
   protected _workerApi?: ProcessorWorkerApi;
   /** ID from setTimeout */
-  protected _workerTimeout?: number;
+  protected _workerTimeout?: ReturnType<typeof setTimeout>;
 
   protected _terminateWorker() {
     if (!this._worker) return;
