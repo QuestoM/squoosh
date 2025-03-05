@@ -72,6 +72,7 @@ export default class BulkCompress extends Component<Props, State> {
     overallProgress: 0,
     processingActive: false,
     concurrency: this.determineOptimalConcurrency(),
+    imageQueue: [],
   };
 
   constructor(props: Props) {
