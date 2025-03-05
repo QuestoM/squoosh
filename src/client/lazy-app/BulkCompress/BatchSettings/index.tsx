@@ -33,7 +33,7 @@ export default class BatchSettings extends Component<Props> {
     this.props.onChange({
       encoderState: {
         type: newType,
-        options,
+        options: options as EncoderState['options'],
       },
     });
   };

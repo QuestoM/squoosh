@@ -325,7 +325,7 @@ export default class Compress extends Component<Props, State> {
   // And again one for each side
   private sideAbortControllers = [new AbortController(), new AbortController()];
   /** For debouncing calls to updateImage for each side. */
-  private updateImageTimeout?: number;
+  private updateImageTimeout?: ReturnType<typeof setTimeout>;
 
   constructor(props: Props) {
     super(props);
@@ -581,10 +581,7 @@ export default class Compress extends Component<Props, State> {
     if (immediate) {
       this.updateImage();
     } else {
-      this.updateImageTimeout = setTimeout(
-        () => this.updateImage(),
-        delay,
-      ) as unknown as number;
+      this.updateImageTimeout = setTimeout(() => this.updateImage(), delay);
     }
   }
 

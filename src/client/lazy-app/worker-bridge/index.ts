@@ -9,6 +9,23 @@ import {
   PreprocessorState,
 } from '../feature-meta';
 
+// Import worker function types
+import type avifDecode from '../../../features/decoders/avif/worker/avifDecode';
+import type jxlDecode from '../../../features/decoders/jxl/worker/jxlDecode';
+import type qoiDecode from '../../../features/decoders/qoi/worker/qoiDecode';
+import type webpDecode from '../../../features/decoders/webp/worker/webpDecode';
+import type wp2Decode from '../../../features/decoders/wp2/worker/wp2Decode';
+import type avifEncode from '../../../features/encoders/avif/worker/avifEncode';
+import type jxlEncode from '../../../features/encoders/jxl/worker/jxlEncode';
+import type mozjpegEncode from '../../../features/encoders/mozJPEG/worker/mozjpegEncode';
+import type oxipngEncode from '../../../features/encoders/oxiPNG/worker/oxipngEncode';
+import type qoiEncode from '../../../features/encoders/qoi/worker/qoiEncode';
+import type webpEncode from '../../../features/encoders/webP/worker/webpEncode';
+import type wp2Encode from '../../../features/encoders/wp2/worker/wp2Encode';
+import type rotate from '../../../features/preprocessors/rotate/worker/rotate';
+import type quantize from '../../../features/processors/quantize/worker/quantize';
+import type resize from '../../../features/processors/resize/worker/resize';
+
 /** How long the worker should be idle before terminating. */
 const workerTimeout = 10_000;
 
@@ -103,7 +120,7 @@ class WorkerBridge {
   /** Comlinked worker API. */
   protected _workerApi?: ProcessorWorkerApi;
   /** ID from setTimeout */
-  protected _workerTimeout?: ReturnType<typeof setTimeout>;
+  protected _workerTimeout?: number;
 
   protected _terminateWorker() {
     if (!this._worker) return;
@@ -130,7 +147,8 @@ for (const methodName of methodNames) {
       .then(async () => {
         if (signal.aborted) throw new DOMException('AbortError', 'AbortError');
 
-        if (this._workerTimeout) clearTimeout(this._workerTimeout);
+        if (this._workerTimeout !== undefined)
+          clearTimeout(this._workerTimeout);
         if (!this._worker) this._startWorker();
 
         const onAbort = () => this._terminateWorker();
@@ -147,7 +165,7 @@ for (const methodName of methodNames) {
           // Start a timer to clear up the worker.
           this._workerTimeout = setTimeout(() => {
             this._terminateWorker();
-          }, workerTimeout);
+          }, workerTimeout) as number;
         });
       });
 

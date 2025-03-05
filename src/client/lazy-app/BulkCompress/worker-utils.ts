@@ -84,6 +84,7 @@ WorkerBridge.prototype.processImage = async function (
       method: processorState.resize.method.startsWith('browser-')
         ? 'lanczos3'
         : (processorState.resize.method as any),
+      fitMethod: processorState.resize.fitMethod,
       premultiply: true,
       linearRGB: true,
     };
