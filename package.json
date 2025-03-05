@@ -21,7 +21,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@surma/rollup-plugin-off-main-thread": "^2.2.2",
     "@types/dedent": "^0.7.0",
-    "@types/jest": "^29.5.0",
+    "@types/jest": "^29.5.14",
     "@types/mime-types": "^2.1.1",
     "@types/node": "^16.11.1",
     "@web/rollup-plugin-import-meta-assets": "^1.0.6",

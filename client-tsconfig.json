@@ -2,7 +2,7 @@
   "extends": "./generic-tsconfig.json",
   "compilerOptions": {
     "lib": ["esnext", "dom", "dom.iterable"],
-    "types": []
+    "types": ["jest", "node"]
   },
   "include": [
     "src/features/**/client/**/*",

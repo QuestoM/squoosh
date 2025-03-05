@@ -79,13 +79,13 @@ WorkerBridge.prototype.processImage = async function (
   if (processorState.resize.enabled) {
     // Convert browser resize method to worker resize method if needed
     const resizeOptions = {
-      ...processorState.resize,
-      premultiply: true,
-      linearRGB: true,
-      // Ensure we're using a compatible resize method for the worker
+      width: processorState.resize.width,
+      height: processorState.resize.height,
       method: processorState.resize.method.startsWith('browser-')
         ? 'lanczos3'
-        : processorState.resize.method,
+        : (processorState.resize.method as any),
+      premultiply: true,
+      linearRGB: true,
     };
     processed = await this.resize(signal, processed, resizeOptions);
   }

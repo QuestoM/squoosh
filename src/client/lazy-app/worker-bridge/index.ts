@@ -12,7 +12,71 @@ import {
 /** How long the worker should be idle before terminating. */
 const workerTimeout = 10_000;
 
-interface WorkerBridge extends BridgeMethods {
+// Extend the base methods but override the return types to avoid Promise<Promise<T>> issues
+interface WorkerBridge {
+  // Original BridgeMethods
+  avifDecode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof avifDecode>
+  ): Promise<ReturnType<typeof avifDecode>>;
+  jxlDecode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof jxlDecode>
+  ): Promise<ReturnType<typeof jxlDecode>>;
+  qoiDecode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof qoiDecode>
+  ): Promise<ReturnType<typeof qoiDecode>>;
+  webpDecode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof webpDecode>
+  ): Promise<ReturnType<typeof webpDecode>>;
+  wp2Decode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof wp2Decode>
+  ): Promise<ReturnType<typeof wp2Decode>>;
+  avifEncode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof avifEncode>
+  ): Promise<ReturnType<typeof avifEncode>>;
+  jxlEncode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof jxlEncode>
+  ): Promise<ReturnType<typeof jxlEncode>>;
+  mozjpegEncode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof mozjpegEncode>
+  ): Promise<ReturnType<typeof mozjpegEncode>>;
+  oxipngEncode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof oxipngEncode>
+  ): Promise<ReturnType<typeof oxipngEncode>>;
+  qoiEncode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof qoiEncode>
+  ): Promise<ReturnType<typeof qoiEncode>>;
+  webpEncode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof webpEncode>
+  ): Promise<ReturnType<typeof webpEncode>>;
+  wp2Encode(
+    signal: AbortSignal,
+    ...args: Parameters<typeof wp2Encode>
+  ): Promise<ReturnType<typeof wp2Encode>>;
+  rotate(
+    signal: AbortSignal,
+    ...args: Parameters<typeof rotate>
+  ): Promise<ReturnType<typeof rotate>>;
+  quantize(
+    signal: AbortSignal,
+    ...args: Parameters<typeof quantize>
+  ): Promise<ReturnType<typeof quantize>>;
+  resize(
+    signal: AbortSignal,
+    ...args: Parameters<typeof resize>
+  ): Promise<ReturnType<typeof resize>>;
+
+  // Additional methods
   decodeImage(file: File, signal: AbortSignal): Promise<ImageData>;
   preprocessImage(
     image: ImageData,
@@ -30,8 +94,6 @@ interface WorkerBridge extends BridgeMethods {
     signal: AbortSignal,
   ): Promise<Blob>;
   browserDecode(file: File, signal: AbortSignal): Promise<ImageData>;
-  webpDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
-  avifDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
 }
 
 class WorkerBridge {
@@ -41,7 +103,7 @@ class WorkerBridge {
   /** Comlinked worker API. */
   protected _workerApi?: ProcessorWorkerApi;
   /** ID from setTimeout */
-  protected _workerTimeout?: number;
+  protected _workerTimeout?: ReturnType<typeof setTimeout>;
 
   protected _terminateWorker() {
     if (!this._worker) return;
@@ -68,7 +130,7 @@ for (const methodName of methodNames) {
       .then(async () => {
         if (signal.aborted) throw new DOMException('AbortError', 'AbortError');
 
-        clearTimeout(this._workerTimeout);
+        if (this._workerTimeout) clearTimeout(this._workerTimeout);
         if (!this._worker) this._startWorker();
 
         const onAbort = () => this._terminateWorker();
