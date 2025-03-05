@@ -12,6 +12,8 @@ interface Props {
   processorState: ProcessorState;
   preprocessorState: typeof defaultPreprocessorState;
   encoderState?: EncoderState;
+  processingActive?: boolean;
+  onStartProcessing?: () => void;
 
   onChange: (updates: {
     processorState?: ProcessorState;
@@ -67,6 +69,17 @@ export default class BatchSettings extends Component<Props> {
           },
         });
         break;
+      case 'avif':
+        this.props.onChange({
+          encoderState: {
+            ...encoderState,
+            options: {
+              ...encoderState.options,
+              quality,
+            },
+          },
+        });
+        break;
       // Add cases for other encoder types as needed
     }
   };
@@ -112,15 +125,17 @@ export default class BatchSettings extends Component<Props> {
             <label class={style.settingLabel}>
               Quality
               {encoderState.type === 'mozJPEG' &&
-                ` (${encoderState.options.quality})`}
+                ` (${(encoderState.options as any).quality})`}
               {encoderState.type === 'webP' &&
-                ` (${encoderState.options.quality})`}
+                ` (${(encoderState.options as any).quality})`}
+              {encoderState.type === 'avif' &&
+                ` (${(encoderState.options as any).quality})`}
             </label>
             <input
               type="range"
               min="0"
               max="100"
-              value={encoderState.options.quality || 75}
+              value={(encoderState.options as any).quality || 75}
               onChange={this.onQualityChange}
               disabled={processingActive}
               class={style.qualitySlider}

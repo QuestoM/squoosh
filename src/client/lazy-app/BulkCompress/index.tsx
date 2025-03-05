@@ -19,6 +19,7 @@ import type SnackBarElement from 'shared/custom-els/snack-bar';
 import { cleanSet, cleanMerge } from '../util/clean-modify';
 import 'shared/custom-els/loading-spinner';
 import BulkResultCache from './bulk-result-cache';
+import './worker-utils';
 
 export type OutputType = string;
 
@@ -85,10 +86,15 @@ export default class BulkCompress extends Component<Props, State> {
   }
 
   private determineOptimalConcurrency(): number {
+    // Get available memory (if supported by browser)
     // @ts-ignore - deviceMemory is not in all browsers' type definitions
+    const memory = navigator.deviceMemory || 4; // Default to 4GB if not available
+
+    // Get available CPU cores (if supported)
+    const cores = navigator.hardwareConcurrency || 4; // Default to 4 cores if not available
 
     // Conservative estimate - 1 worker per 1GB of RAM, up to available cores
-    return Math.min(Math.max(1, Math.floor(totalRAM / 2)), availableCores, 4);
+    return Math.min(Math.max(1, Math.floor(memory / 2)), cores, 4);
   }
 
   componentDidMount() {
