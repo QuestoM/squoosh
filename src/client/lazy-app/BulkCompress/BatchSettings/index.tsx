@@ -25,7 +25,12 @@ interface Props {
 export default class BatchSettings extends Component<Props> {
   private onEncoderTypeChange = (event: Event) => {
     const select = event.target as HTMLSelectElement;
-    const newType = select.value as EncoderState['type'];
+    const newType = select.value as
+      | 'mozJPEG'
+      | 'webP'
+      | 'avif'
+      | 'oxiPNG'
+      | 'jxl';
 
     // Get default options for the selected encoder
     const options = encoderMap[newType].meta.defaultOptions;

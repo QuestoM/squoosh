@@ -3,26 +3,27 @@ import { EncoderState } from '../feature-meta';
 import { PreprocessorState } from '../feature-meta';
 import { ProcessorState } from '../feature-meta';
 
-// Extend WorkerBridge with the methods needed for BulkCompress
-declare module '../worker-bridge' {
-  interface WorkerBridge {
-    decodeImage(file: File, signal: AbortSignal): Promise<ImageData>;
-    preprocessImage(
-      image: ImageData,
-      preprocessorState: PreprocessorState,
-      signal: AbortSignal,
-    ): Promise<ImageData>;
-    processImage(
-      image: ImageData,
-      processorState: ProcessorState,
-      signal: AbortSignal,
-    ): Promise<ImageData>;
-    encodeImage(
-      image: ImageData,
-      encoderState: EncoderState,
-      signal: AbortSignal,
-    ): Promise<Blob>;
-  }
+// Define additional methods for WorkerBridge
+interface WorkerBridge {
+  browserDecode(file: File, signal: AbortSignal): Promise<ImageData>;
+  webpDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
+  avifDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
+  decodeImage(file: File, signal: AbortSignal): Promise<ImageData>;
+  preprocessImage(
+    image: ImageData,
+    preprocessorState: PreprocessorState,
+    signal: AbortSignal,
+  ): Promise<ImageData>;
+  processImage(
+    image: ImageData,
+    processorState: ProcessorState,
+    signal: AbortSignal,
+  ): Promise<ImageData>;
+  encodeImage(
+    image: ImageData,
+    encoderState: EncoderState,
+    signal: AbortSignal,
+  ): Promise<Blob>;
 }
 
 // Implementation of the extension methods
@@ -59,9 +60,9 @@ WorkerBridge.prototype.decodeImage = async function (
     // Similar approach for PNG
     return this.browserDecode(file, signal);
   } else if (file.type === 'image/webp') {
-    return this.webpDecode(signal, fileData);
+    return this.webpDecode(signal, new Blob([fileData]));
   } else if (file.type === 'image/avif') {
-    return this.avifDecode(signal, fileData);
+    return this.avifDecode(signal, new Blob([fileData]));
   } else {
     // Default to browser decoding for other formats
     return this.browserDecode(file, signal);
