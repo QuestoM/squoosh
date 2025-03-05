@@ -1,30 +1,9 @@
 import WorkerBridge from '../worker-bridge';
-import { EncoderState } from '../feature-meta';
-import { PreprocessorState } from '../feature-meta';
-import { ProcessorState } from '../feature-meta';
-
-// Define additional methods for WorkerBridge
-interface WorkerBridge {
-  browserDecode(file: File, signal: AbortSignal): Promise<ImageData>;
-  webpDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
-  avifDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
-  decodeImage(file: File, signal: AbortSignal): Promise<ImageData>;
-  preprocessImage(
-    image: ImageData,
-    preprocessorState: PreprocessorState,
-    signal: AbortSignal,
-  ): Promise<ImageData>;
-  processImage(
-    image: ImageData,
-    processorState: ProcessorState,
-    signal: AbortSignal,
-  ): Promise<ImageData>;
-  encodeImage(
-    image: ImageData,
-    encoderState: EncoderState,
-    signal: AbortSignal,
-  ): Promise<Blob>;
-}
+import {
+  EncoderState,
+  ProcessorState,
+  PreprocessorState,
+} from '../feature-meta';
 
 // Implementation of the extension methods
 WorkerBridge.prototype.decodeImage = async function (
@@ -37,25 +16,7 @@ WorkerBridge.prototype.decodeImage = async function (
   // Use appropriate decoder based on file type
   if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
     // Use browser to decode JPEG
-    const img = document.createElement('img');
-    const imgLoaded = new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load image'));
-    });
-
-    img.src = URL.createObjectURL(file);
-    await imgLoaded;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Could not get canvas context');
-
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(img.src);
-
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return this.browserDecode(file, signal);
   } else if (file.type === 'image/png') {
     // Similar approach for PNG
     return this.browserDecode(file, signal);
@@ -116,7 +77,11 @@ WorkerBridge.prototype.processImage = async function (
 
   // Apply resize if enabled
   if (processorState.resize.enabled) {
-    processed = await this.resize(signal, processed, processorState.resize);
+    processed = await this.resize(signal, processed, {
+      ...processorState.resize,
+      premultiply: true,
+      linearRGB: true,
+    });
   }
 
   // Apply quantize if enabled

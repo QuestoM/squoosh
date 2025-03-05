@@ -3,11 +3,36 @@ import { BridgeMethods, methodNames } from './meta';
 import workerURL from 'omt:../../../features-worker';
 import type { ProcessorWorkerApi } from '../../../features-worker';
 import { abortable } from '../util';
+import {
+  EncoderState,
+  ProcessorState,
+  PreprocessorState,
+} from '../feature-meta';
 
 /** How long the worker should be idle before terminating. */
 const workerTimeout = 10_000;
 
-interface WorkerBridge extends BridgeMethods {}
+interface WorkerBridge extends BridgeMethods {
+  decodeImage(file: File, signal: AbortSignal): Promise<ImageData>;
+  preprocessImage(
+    image: ImageData,
+    preprocessorState: PreprocessorState,
+    signal: AbortSignal,
+  ): Promise<ImageData>;
+  processImage(
+    image: ImageData,
+    processorState: ProcessorState,
+    signal: AbortSignal,
+  ): Promise<ImageData>;
+  encodeImage(
+    image: ImageData,
+    encoderState: EncoderState,
+    signal: AbortSignal,
+  ): Promise<Blob>;
+  browserDecode(file: File, signal: AbortSignal): Promise<ImageData>;
+  webpDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
+  avifDecode(signal: AbortSignal, data: Blob): Promise<ImageData>;
+}
 
 class WorkerBridge {
   protected _queue = Promise.resolve() as Promise<unknown>;
@@ -16,7 +41,7 @@ class WorkerBridge {
   /** Comlinked worker API. */
   protected _workerApi?: ProcessorWorkerApi;
   /** ID from setTimeout */
-  protected _workerTimeout?: number;
+  protected _workerTimeout?: ReturnType<typeof setTimeout>;
 
   protected _terminateWorker() {
     if (!this._worker) return;
