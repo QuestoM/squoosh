@@ -1,6 +1,6 @@
 # [Squoosh]!
 
-[Squoosh] is an image compression web app that reduces image sizes through numerous formats.
+[Squoosh] is an image compression app that reduces image sizes through numerous formats.
 
 # Privacy
 
